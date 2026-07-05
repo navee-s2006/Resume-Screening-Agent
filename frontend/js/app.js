@@ -1,6 +1,6 @@
 // ===== Shared utilities used across all pages =====
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "https://resume-screening-agent-bqdf.onrender.com/api";
 
 /* ---------- Theme (dark/light) ---------- */
 function initTheme() {
