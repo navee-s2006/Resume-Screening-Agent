@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Analysis — Resume Screener</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="home.html" class="logo"><span class="mark">RS</span> Resume Screener</a>
+    <ul class="nav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="analysis.html" class="active">Analysis</a></li>
+      <li><a href="profile.html">Profile</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+    <div class="nav-right">
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☾</button>
+      <div id="navAvatar" class="avatar-btn">U</div>
+      <button id="logoutBtn" class="btn btn-outline" style="padding:8px 14px;font-size:13px;">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <section class="section" style="padding-top:44px;">
+    <div class="section-head">
+      <div class="eyebrow">Screening</div>
+      <h2>Analyse your resume against a role</h2>
+    </div>
+
+    <div class="grid-2" style="align-items:start;">
+      <div class="card">
+        <div class="field">
+          <label for="roleSelect">Target role</label>
+          <select id="roleSelect"></select>
+        </div>
+
+        <div class="field">
+          <label>Resume file</label>
+          <div class="dropzone" id="dropzone">
+            <div class="icon">📄</div>
+            <div>Drag & drop your resume here, or click to browse</div>
+            <div class="help-text">PDF or DOCX only</div>
+            <div class="filename" id="filename"></div>
+          </div>
+          <input type="file" id="fileInput" accept=".pdf,.docx" style="display:none;">
+        </div>
+
+        <button class="btn btn-primary btn-block" id="analyzeBtn">Analyse resume</button>
+        <div id="analysisError" class="error-text" style="display:none;"></div>
+      </div>
+
+      <div id="resultPanel">
+        <div class="empty-state card">
+          <p>Your match ticket will appear here once you upload a resume and run the analysis.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="footer">Resume Screener — built with Spring Boot, MySQL and Gemini.</footer>
+
+<script src="data/skills-resources.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = requireAuth();
+
+  // ---- Role dropdown ----
+  const roleSelect = document.getElementById("roleSelect");
+  roleSelect.innerHTML = Object.keys(JOB_SKILLS_MAP).map(j => `<option value="${j}">${j}</option>`).join("");
+
+  // ---- File dropzone ----
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const filenameEl = document.getElementById("filename");
+  let selectedFile = null;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    setFile(e.dataTransfer.files[0]);
+  });
+  function setFile(file) {
+    if (!file) return;
+    selectedFile = file;
+    filenameEl.textContent = "Selected: " + file.name;
+  }
+
+  // ---- Analyse flow ----
+  document.getElementById("analyzeBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("analysisError");
+    errEl.style.display = "none";
+
+    if (!selectedFile) {
+      errEl.textContent = "Please choose a resume file first.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    const btn = document.getElementById("analyzeBtn");
+    btn.disabled = true;
+    btn.textContent = "Analysing…";
+    document.getElementById("resultPanel").innerHTML = `<div class="card empty-state"><div class="spinner" style="margin:0 auto 12px;"></div>Screening your resume…</div>`;
+
+    const role = roleSelect.value;
+    const skills = JOB_SKILLS_MAP[role];
+
+    try {
+      // 1. Create job description for the selected role
+      const jobRes = await fetch(`${API_BASE}/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: role,
+          description: `We are looking for a ${role} with strong fundamentals and hands-on project experience.`,
+          requiredSkills: skills.join(", ")
+        })
+      });
+      const job = await jobRes.json();
+
+      // 2. Upload the resume — name intentionally NOT sent here, so the backend
+      // auto-detects the actual candidate's name from the resume text itself.
+      // This matters when you're screening someone else's resume (e.g. a friend's)
+      // while logged into your own account.
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("email", user.email);
+      const uploadRes = await fetch(`${API_BASE}/resumes/upload`, { method: "POST", body: formData });
+      const candidate = await uploadRes.json();
+
+      // 3. Trigger screening (LLM call, or mock fallback on the backend)
+      const screenRes = await fetch(`${API_BASE}/screen/${candidate.id}/${job.id}`, { method: "POST" });
+      const result = await screenRes.json();
+
+      if (!screenRes.ok) throw new Error(result.error || "Screening failed");
+
+      renderResult(result, role, skills, candidate.resumeText || "", candidate.name);
+      showToast("Analysis complete", "success");
+    } catch (err) {
+      errEl.textContent = "Something went wrong: " + err.message;
+      errEl.style.display = "block";
+      document.getElementById("resultPanel").innerHTML = `<div class="card empty-state"><p>Analysis failed. Check the error message and try again.</p></div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Analyse resume";
+    }
+  });
+
+  function stampClass(verdict) {
+    if (verdict === "Strong Match") return "stamp-strong";
+    if (verdict === "Moderate Match") return "stamp-moderate";
+    return "stamp-weak";
+  }
+
+  function renderResult(result, role, skills, resumeText, candidateName) {
+    const strengths = safeParseArray(result.strengths);
+    const gaps = safeParseArray(result.gaps);
+    const verdict = result.verdict || "Not Suitable";
+    const score = result.matchScore ?? 0;
+    const bars = Array.from({ length: 36 }, () => `<span style="height:${8 + Math.random() * 26}px;"></span>`).join("");
+
+    // Skills the resume text doesn't mention -> "develop next" with free resources
+    const lowerResume = resumeText.toLowerCase();
+    const missingSkills = skills.filter(s => !lowerResume.includes(s.toLowerCase()));
+
+    // Suggest other roles based on how many required skills already appear in the resume
+    const roleMatches = Object.entries(JOB_SKILLS_MAP)
+      .map(([job, reqSkills]) => {
+        const have = reqSkills.filter(s => lowerResume.includes(s.toLowerCase())).length;
+        return { job, pct: Math.round((have / reqSkills.length) * 100) };
+      })
+      .filter(r => r.job !== role)
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 3);
+
+    document.getElementById("resultPanel").innerHTML = `
+      <div class="ticket">
+        <div class="ticket-punch top"></div>
+        <div class="ticket-punch bottom"></div>
+        <div class="ticket-main">
+          <div class="ticket-eyebrow">Boarding pass — screening result</div>
+          <div class="ticket-role">${role}</div>
+          <div class="ticket-fields">
+            <div class="ticket-field"><div class="label">Candidate</div><div class="value">${candidateName || (user.fullName || user.username)}</div></div>
+            <div class="ticket-field"><div class="label">Date</div><div class="value">${new Date().toLocaleDateString()}</div></div>
+            <div class="ticket-field"><div class="label">Gate</div><div class="value">ROLE-${String(result.id).padStart(3, "0")}</div></div>
+          </div>
+          <div class="ticket-barcode">${bars}</div>
+        </div>
+        <div class="ticket-stub">
+          <div class="ticket-score">${score}</div>
+          <div class="ticket-score-label">Match Score</div>
+          <div class="ticket-stamp ${stampClass(verdict)}">${verdict}</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="strengths-gaps">
+          <div class="sg-block strengths">
+            <h4>Strengths</h4>
+            <ul>${strengths.map(s => `<li>${s}</li>`).join("") || "<li>No strengths returned.</li>"}</ul>
+          </div>
+          <div class="sg-block gaps">
+            <h4>Gaps</h4>
+            <ul>${gaps.map(g => `<li>${g}</li>`).join("") || "<li>No gaps returned.</li>"}</ul>
+          </div>
+        </div>
+      </div>
+
+      ${missingSkills.length ? `
+      <div class="job-result-card">
+        <h3>Skills to develop next</h3>
+        <div class="role-meta">Not clearly found in your resume for ${role} — with a free resource for each</div>
+        ${missingSkills.map(skill => {
+          const res = getResourceForSkill(skill);
+          return `<div class="skill-resource-row">
+            <span class="skill-name">${skill}</span>
+            <div class="skill-resource-right">
+              <span class="platform-badge">Available on: ${res.platform}</span>
+              <a class="resource-link" href="${res.url}" target="_blank" rel="noopener">${res.name} ↗</a>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>` : ""}
+
+      ${roleMatches.length ? `
+      <div class="job-result-card">
+        <h3>Other roles worth exploring</h3>
+        <div class="role-meta">Based on the skills already in your resume</div>
+        ${roleMatches.map(r => `<div class="skill-resource-row">
+          <span class="skill-name">${r.job}</span>
+          <span class="mono" style="color:var(--text-muted);font-size:13.5px;">${r.pct}% skill match</span>
+        </div>`).join("")}
+      </div>` : ""}
+    `;
+  }
+
+  function safeParseArray(value) {
+    if (Array.isArray(value)) return value;
+    try { return JSON.parse(value); } catch { return []; }
+  }
+</script>
+</body>
+</html>

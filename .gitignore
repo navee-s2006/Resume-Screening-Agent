@@ -1,0 +1,5 @@
+﻿resume-screener/target/
+resume-screener/src/main/resources/application.properties
+.vscode/
+*.class
+.DS_Store

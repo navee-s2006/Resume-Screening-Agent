@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Resume Screener</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="home.html" class="logo"><span class="mark">RS</span> Resume Screener</a>
+    <ul class="nav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="analysis.html">Analysis</a></li>
+      <li><a href="profile.html">Profile</a></li>
+      <li><a href="about.html" class="active">About</a></li>
+    </ul>
+    <div class="nav-right">
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☾</button>
+      <div id="navAvatar" class="avatar-btn">U</div>
+      <button id="logoutBtn" class="btn btn-outline" style="padding:8px 14px;font-size:13px;">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="about-hero">
+    <div class="eyebrow" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">How it works</div>
+    <h1 style="font-size:34px;margin-bottom:16px;">A resume screening agent, built like a recruiter's checklist.</h1>
+    <p style="font-size:15.5px;">Every screening result on this site is issued the way a boarding pass is issued — one candidate, one role, one honest verdict. Behind it is a straightforward pipeline: extract text from your resume, hand it to an LLM with a carefully engineered prompt, and turn the response into a score you can act on.</p>
+  </div>
+
+  <section class="section">
+    <div class="section-head">
+      <div class="eyebrow">Pipeline</div>
+      <h2>From upload to verdict</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="num">01</div>
+        <div><h4>Resume parsing</h4><p>Your PDF or DOCX is parsed on the backend (Apache PDFBox / POI) and converted into plain text.</p></div>
+      </div>
+      <div class="timeline-item">
+        <div class="num">02</div>
+        <div><h4>Prompt engineering</h4><p>The resume text and job description are combined into a structured prompt: a recruiter persona, numbered instructions, and a strict JSON output schema — so the model's answer is consistent and easy to parse.</p></div>
+      </div>
+      <div class="timeline-item">
+        <div class="num">03</div>
+        <div><h4>LLM screening</h4><p>The prompt is sent to an LLM (Gemini), which returns a match score, strengths, gaps, and a verdict — grounded only in what's actually written in the resume.</p></div>
+      </div>
+      <div class="timeline-item">
+        <div class="num">04</div>
+        <div><h4>Stored & tracked</h4><p>Every result is saved to MySQL, so your profile always shows your latest score and full screening history.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div class="eyebrow">Stack</div>
+      <h2>Built with</h2>
+    </div>
+    <div class="grid-3">
+      <div class="card"><h3 style="font-size:16px;margin-bottom:6px;">Frontend</h3><p>HTML, CSS, vanilla JavaScript</p></div>
+      <div class="card"><h3 style="font-size:16px;margin-bottom:6px;">Backend</h3><p>Java, Spring Boot, REST APIs</p></div>
+      <div class="card"><h3 style="font-size:16px;margin-bottom:6px;">Data & AI</h3><p>MySQL, Google Gemini API</p></div>
+    </div>
+  </section>
+</div>
+
+<footer class="footer">Resume Screener — a college project built with Spring Boot, MySQL and Gemini.</footer>
+
+<script src="js/app.js"></script>
+<script>requireAuth();</script>
+</body>
+</html>

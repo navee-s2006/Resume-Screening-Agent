@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — Resume Screener</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="home.html" class="logo"><span class="mark">RS</span> Resume Screener</a>
+    <ul class="nav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="analysis.html">Analysis</a></li>
+      <li><a href="profile.html" class="active">Profile</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+    <div class="nav-right">
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☾</button>
+      <div id="navAvatar" class="avatar-btn">U</div>
+      <button id="logoutBtn" class="btn btn-outline" style="padding:8px 14px;font-size:13px;">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="profile-header">
+    <div class="profile-avatar" id="bigAvatar">U</div>
+    <div>
+      <div class="profile-name" id="profileName">—</div>
+      <div class="profile-email" id="profileEmail">—</div>
+    </div>
+    <div style="margin-left:auto;text-align:right;" id="scoreBadge"></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="details">Personal details</button>
+    <button class="tab-btn" data-tab="history">Screening history</button>
+  </div>
+
+  <div id="tab-details">
+    <div class="card" style="max-width:560px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h3 style="font-size:16px;">Your details</h3>
+        <button type="button" class="btn btn-outline" id="editToggleBtn" style="padding:8px 16px;font-size:13px;">Edit</button>
+      </div>
+      <form id="profileForm">
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input type="text" id="fullName" disabled>
+        </div>
+        <div class="field">
+          <label for="college">College / University</label>
+          <input type="text" id="college" disabled placeholder="e.g. V.S.B. Engineering College">
+        </div>
+        <div class="field">
+          <label for="degree">Degree / Branch</label>
+          <input type="text" id="degree" disabled placeholder="e.g. B.Tech Information Technology">
+        </div>
+        <div class="field">
+          <label for="graduationYear">Graduation year</label>
+          <input type="text" id="graduationYear" disabled placeholder="e.g. 2027">
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <input type="text" id="location" disabled placeholder="e.g. Namakkal, Tamil Nadu">
+        </div>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" disabled placeholder="+91 XXXXXXXXXX">
+        </div>
+        <div class="field">
+          <label for="bio">About you</label>
+          <textarea id="bio" disabled placeholder="A short note about your goals, interests, or the roles you're targeting."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="saveBtn" style="display:none;">Save changes</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-history" style="display:none;">
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<footer class="footer">Resume Screener — built with Spring Boot, MySQL and Gemini.</footer>
+
+<script src="js/app.js"></script>
+<script>
+  const user = requireAuth();
+
+  document.getElementById("profileName").textContent = user.fullName || user.username;
+  document.getElementById("profileEmail").textContent = user.email;
+  const initial = (user.fullName || user.username || "U").charAt(0).toUpperCase();
+  document.getElementById("bigAvatar").textContent = initial;
+  document.getElementById("fullName").value = user.fullName || "";
+  document.getElementById("phone").value = user.phone || "";
+  document.getElementById("college").value = user.college || "";
+  document.getElementById("degree").value = user.degree || "";
+  document.getElementById("graduationYear").value = user.graduationYear || "";
+  document.getElementById("location").value = user.location || "";
+  document.getElementById("bio").value = user.bio || "";
+
+  // ---- Edit / Save toggle ----
+  const detailInputs = ["fullName", "college", "degree", "graduationYear", "location", "phone", "bio"]
+    .map(id => document.getElementById(id));
+  const editToggleBtn = document.getElementById("editToggleBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  let isEditing = false;
+
+  editToggleBtn.addEventListener("click", () => {
+    isEditing = !isEditing;
+    detailInputs.forEach(el => el.disabled = !isEditing);
+    saveBtn.style.display = isEditing ? "inline-flex" : "none";
+    editToggleBtn.textContent = isEditing ? "Cancel" : "Edit";
+    if (isEditing) detailInputs[0].focus();
+    else {
+      // Cancelled — reset fields back to saved values
+      document.getElementById("fullName").value = user.fullName || "";
+      document.getElementById("phone").value = user.phone || "";
+      document.getElementById("college").value = user.college || "";
+      document.getElementById("degree").value = user.degree || "";
+      document.getElementById("graduationYear").value = user.graduationYear || "";
+      document.getElementById("location").value = user.location || "";
+      document.getElementById("bio").value = user.bio || "";
+    }
+  });
+
+  // ---- Tabs ----
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("tab-details").style.display = btn.dataset.tab === "details" ? "block" : "none";
+      document.getElementById("tab-history").style.display = btn.dataset.tab === "history" ? "block" : "none";
+    });
+  });
+
+  // ---- Save personal details ----
+  document.getElementById("profileForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      fullName: document.getElementById("fullName").value.trim(),
+      phone: document.getElementById("phone").value.trim(),
+      college: document.getElementById("college").value.trim(),
+      degree: document.getElementById("degree").value.trim(),
+      graduationYear: document.getElementById("graduationYear").value.trim(),
+      location: document.getElementById("location").value.trim(),
+      bio: document.getElementById("bio").value.trim()
+    };
+    try {
+      const res = await fetch(`${API_BASE}/auth/profile/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error || "Update failed");
+      setCurrentUser(updated);
+      Object.assign(user, updated);
+      document.getElementById("profileName").textContent = updated.fullName || updated.username;
+
+      // Lock fields again after a successful save
+      isEditing = false;
+      detailInputs.forEach(el => el.disabled = true);
+      saveBtn.style.display = "none";
+      editToggleBtn.textContent = "Edit";
+
+      showToast("Profile saved", "success");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+
+  // ---- Latest score + full history (all scans, across all days) ----
+  async function loadScoreAndHistory() {
+    try {
+      const histRes = await fetch(`${API_BASE}/results/by-email/${encodeURIComponent(user.email)}`);
+      const history = await histRes.json();
+
+      if (!history.length) {
+        document.getElementById("scoreBadge").innerHTML = `<span class="help-text">Not screened yet</span>`;
+        document.getElementById("historyList").innerHTML = `<div class="card empty-state">No screening history yet. Go to Analysis to screen your resume.</div>`;
+        return;
+      }
+
+      const latest = history[0];
+      document.getElementById("scoreBadge").innerHTML = `
+        <div class="ticket-score" style="font-size:32px;">${latest.matchScore}</div>
+        <div class="ticket-score-label">Latest score — ${latest.job?.title || ""}</div>
+      `;
+
+      document.getElementById("historyList").innerHTML = `
+        <div class="help-text" style="margin-bottom:14px;">${history.length} screening${history.length > 1 ? "s" : ""} total</div>
+      ` + history.map(h => `
+        <div class="card" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div>
+            <div style="font-weight:600;font-size:15px;">${h.job?.title || "Role"}</div>
+            <div class="help-text mono">${new Date(h.screenedAt).toLocaleString()}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="mono" style="font-size:22px;font-weight:700;">${h.matchScore}</div>
+            <div class="help-text">${h.verdict}</div>
+          </div>
+        </div>
+      `).join("");
+    } catch (err) {
+      document.getElementById("historyList").innerHTML = `<div class="card empty-state">Could not load screening history.</div>`;
+    }
+  }
+
+  loadScoreAndHistory();
+</script>
+</body>
+</html>

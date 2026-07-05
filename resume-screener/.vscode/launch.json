@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "ResumeScreenerApplication",
+            "request": "launch",
+            "mainClass": "com.resumescreener.ResumeScreenerApplication",
+            "projectName": "resume-screener",
+            "env": {
+                "SPRING_DATASOURCE_URL": "jdbc:mysql://localhost:3306/resume_screener_db?createDatabaseIfNotExist=true",
+                "SPRING_DATASOURCE_USERNAME": "root",
+                "SPRING_DATASOURCE_PASSWORD": "root123"
+            }
+        }
+    ]
+}
